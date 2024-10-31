@@ -304,6 +304,10 @@ def backtest_straddle(start_date, duration, cash=10000):
     
     return pnl, final_cash, daily_values
 
+def execute_backtest(start_date, duration, cash, strategy):
+    if strategy == "Straddle":
+        backtest_straddle(start_date=start_date, duration=duration, cash=cash)
+
 def main():
     start_date = "2023-01-03"
     duration = 27

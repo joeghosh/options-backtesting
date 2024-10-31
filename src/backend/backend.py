@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from backtester import backtest_straddle  # Import your strategy here
+from backtester import execute_backtest  # Import your strategy here
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -11,9 +11,10 @@ def run_backtest():
     start_date = data['start_date']
     duration = int(data['duration'])
     cash = float(data['cash'])
+    strategy = data['strategy']
     
     # Run the backtest
-    pnl, final_cash, daily_values = backtest_straddle(start_date, duration, cash)
+    pnl, final_cash, daily_values = execute_backtest(start_date, duration, cash, strategy)
     
     return jsonify({
         'pnl': pnl,

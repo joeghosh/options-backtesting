@@ -1,0 +1,82 @@
+$app-background: #f9f9f9;
+$primary-color: #4a90e2;
+$button-color: #2a7ae4;
+$border-radius: 5px;
+
+.app {
+  background-color: $app-background;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  max-width: 600px;
+  margin: 0 auto;
+  border-radius: $border-radius;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+
+  h1 {
+    text-align: center;
+    color: $primary-color;
+  }
+
+  .input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin: 20px 0;
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+
+      label {
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+
+      input,
+      select,
+      .react-datepicker-wrapper {
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ddd;
+        border-radius: $border-radius;
+      }
+
+      .react-datepicker-wrapper {
+        width: 100%;
+      }
+    }
+  }
+
+  .run-button {
+    background-color: $button-color;
+    color: #fff;
+    padding: 10px;
+    border: none;
+    border-radius: $border-radius;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+
+    &:hover {
+      background-color: darken($button-color, 10%);
+    }
+  }
+
+  .results-container {
+    margin-top: 20px;
+    background: #fff;
+    padding: 20px;
+    border-radius: $border-radius;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+
+    h2 {
+      color: $primary-color;
+      margin-bottom: 10px;
+    }
+
+    p {
+      font-size: 18px;
+      line-height: 1.5;
+    }
+  }
+}
