@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from backtester import execute_backtest  # Import your strategy here
+from backtester import execute_backtest
 from flask_cors import CORS
 
 app = Flask(__name__)
