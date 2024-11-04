@@ -227,6 +227,10 @@ class StraddleStrategy(OptionStrategy):
     def enter_position(self):
         """Open a straddle position at the specified start date"""
         current_data = self.data.loc[self.data['QUOTE_DATE'] == self.start_date]
+
+        if (current_data.empty):
+            raise ValueError("Start date has no corresponding quotes")
+
         current_price = current_data['UNDERLYING_LAST'].values[0]
 
         call_option = self.find_closest_option('call', self.start_date, current_price, self.expiration_date)
@@ -306,7 +310,7 @@ def backtest_straddle(start_date, duration, cash=10000):
 
 def execute_backtest(start_date, duration, cash, strategy):
     if strategy == "Straddle":
-        backtest_straddle(start_date=start_date, duration=duration, cash=cash)
+        return backtest_straddle(start_date=start_date, duration=duration, cash=cash)
 
 def main():
     start_date = "2023-01-03"

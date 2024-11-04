@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import DatePicker from 'react-datepicker';
+import DateTimePicker from 'react-datetime-picker';
 import 'react-datepicker/dist/react-datepicker.css';
 import './App.scss';
 import DailyValueChart from './DailyValueChart.js';
@@ -8,7 +8,7 @@ import DailyValueChart from './DailyValueChart.js';
 const strategies = ['Straddle']; // Add more strategies as needed
 
 const App = () => {
-  const [startDate, setStartDate] = useState(null);
+  const [startDate, setStartDate] = useState('2023-01-03');
   const [duration, setDuration] = useState(30);
   const [initialCash, setInitialCash] = useState(10000);
   const [strategy, setStrategy] = useState(strategies[0]);
@@ -18,7 +18,7 @@ const App = () => {
   const runBacktest = async () => {
     try {
       const response = await axios.post('http://localhost:5000/backtest', {
-        start_date: startDate ? startDate.toISOString().split('T')[0] : '',
+        start_date: startDate,
         duration: duration,
         cash: initialCash,
         strategy: strategy,
@@ -36,11 +36,11 @@ const App = () => {
       <div className='input-container'>
         <div className='input-group'>
           <label>Start Date:</label>
-          <DatePicker
-            selected={startDate}
-            onChange={(date) => setStartDate(date)}
-            dateFormat='yyyy-MM-dd'
-            placeholderText='Select a date'
+          <input
+            type='date'
+            className='form-control'
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
           />
         </div>
         <div className='input-group'>

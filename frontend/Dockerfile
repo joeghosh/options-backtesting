@@ -5,7 +5,8 @@ FROM node
 WORKDIR /app
 
 # Copy the package.json and install dependencies
-#COPY package.json ./
+COPY package.json package-lock.json /app
+RUN npm config set registry https://registry.npmjs.org/
 RUN npm install
 
 # Copy the rest of the React app's code
@@ -23,4 +24,4 @@ COPY . .
 EXPOSE 3000
 
 #Run the app when the container is ran
-CMD ["npm", "start""]
+CMD ["npm", "start"]
