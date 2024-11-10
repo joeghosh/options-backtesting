@@ -42,32 +42,14 @@ class OptionStrategy:
         df_expiry_dates = pd.to_datetime(filtered_df['EXPIRE_DATE']).dt.normalize()
         # Check if the expiry date exists in the filtered DataFrame
         if expiry_date_str not in filtered_df['EXPIRE_DATE']:
-            # Find the nearest expiry date
-            # filtered_df['EXPIRY_DIFF'] = abs(pd.to_datetime(filtered_df['EXPIRE_DATE']) - original_expiry_date)
-            # nearest_expiry = filtered_df.loc[filtered_df['EXPIRY_DIFF'].idxmin(), 'EXPIRE_DATE']
-
             filtered_df['EXPIRY_DIFF'] = abs(df_expiry_dates - original_expiry_date)
             nearest_expiry = filtered_df.loc[filtered_df['EXPIRY_DIFF'].idxmin(), 'EXPIRE_DATE']
             nearest_expiry_date = pd.Timestamp(nearest_expiry).normalize()
             
             if nearest_expiry_date != original_expiry_date:
                 print("had to substitute date")
-            #     # Only prompt if the actual date is different
-            #     print(f"No exact match found for expiry date {expiry_date_str}.")
-            #     print(f"The nearest available expiry date is {nearest_expiry_date.strftime('%Y-%m-%d')}.")
-            #     user_confirm = input("Do you want to use this expiry date? (y/n): ").lower().strip()
-                
-            #     if user_confirm == 'y':
-            #         expiry_date_str = nearest_expiry_date.strftime('%Y-%m-%d')
-            #         new_expiry_date = nearest_expiry_date
-            #     else:
-            #         raise Exception("Retry program with different params - that you're happy with >:(")  # User didn't confirm, so we kick them out
-            # else:
-                # If the date is the same (just different time format), use it without prompting
+
             expiry_date_str = nearest_expiry_date.strftime('%Y-%m-%d')
-                
-        else:
-            new_expiry_date = expiry_date
 
         # Re-filter the DataFrame with the confirmed expiry date
         result_df = filtered_df[filtered_df['EXPIRE_DATE'] == expiry_date_str]
@@ -75,6 +57,10 @@ class OptionStrategy:
         # Find the closest strike price
         result_df['STRIKE_DIFF'] = abs(result_df['STRIKE'] - strike_price)
         closest_strike = result_df.loc[result_df['STRIKE_DIFF'].idxmin(), 'STRIKE']
+
+        print("RESULTING DATAFRAME", result_df)
+        print("strike price", strike_price)
+        print("exact dataframe", result_df[result_df['STRIKE'] == strike_price])
         
         # Filter further based on the closest strike price
         result = result_df[result_df['STRIKE'] == closest_strike]
@@ -113,7 +99,8 @@ class OptionStrategy:
                     'date': formatted_date,
                     'calls': [],
                     'puts': [],
-                    'total_value': 0
+                    'total_value': 0,
+                    'underlying_value': self.data[self.data['QUOTE_DATE'] == self.expiration_date]['UNDERLYING_LAST'].values[0]
                 }
 
                 # Evaluate calls
@@ -126,8 +113,10 @@ class OptionStrategy:
                         must_find=False
                     )
 
+                    print("Option data: ", option_data)
+
                     if option_data is not None:
-                        call_value = float(option_data['C_BID']) * call['size'] #this might be an issue with how the actual val is calculated
+                        call_value = float(option_data['C_BID']) #this might be an issue with how the actual val is calculated - value might be taken from wrong option on the chain hence the low values
                         daily_value['calls'].append({
                             'expiry': call['expiry'],
                             'strike': call['strike'],
@@ -135,7 +124,7 @@ class OptionStrategy:
                             'implied_vol': option_data['C_IV'],
                             'size': call['size']
                         })
-                        daily_value['total_value'] += float(call_value)
+                        daily_value['total_value'] += call_value * call['size']
                     else:
                         daily_value['calls'].append({
                             'expiry': "N/A",
@@ -189,19 +178,15 @@ class OptionStrategy:
         total_entry_price = 0
 
         # Given we carry everything to expiration, find underlying price on final day to use as value for stock.
-        expiry_price = self.data[self.data['QUOTE_DATE'] == self.expiration_date]['UNDERLYING_LAST'].values[0]
-        print("EXPIRY STUFF")
-        print(expiry_price)
+        S = self.data[self.data['QUOTE_DATE'] == self.expiration_date]['UNDERLYING_LAST'].values[0]
 
         # Process calls
         for call in self.position['calls']:
             expiry_data = self.data[self.data['QUOTE_DATE'] == call['expiry']]
             if not expiry_data.empty:
-                S = expiry_data['UNDERLYING_LAST'].values[0]  # underlying price at expiration
                 K = call['strike']
                 call_value = max(0, S - K)
                 exit_price = call_value * call['size']
-                print("CALL VALUE", call['size'])
 
                 total_exit_price += exit_price
                 total_entry_price += call['cost'] * call['size']
@@ -210,10 +195,10 @@ class OptionStrategy:
         for put in self.position['puts']:
             expiry_data = self.data[self.data['QUOTE_DATE'] == put['expiry']]
             if not expiry_data.empty:
-                S = expiry_data['UNDERLYING_LAST'].values[0]  # underlying price at expiration
                 K = put['strike']
                 put_value = max(0, K - S)
                 exit_price = put_value * put['size']
+
                 total_exit_price += exit_price
                 total_entry_price += put['cost'] * put['size']
         
@@ -268,7 +253,7 @@ class StraddleStrategy(OptionStrategy):
         self.daily_values[0] = position_size + self.cash 
 
 
-def load_and_filter_data(file_path, strike_distance_pct_threshold=0.05):
+def load_and_filter_data(start_date, duration, base_path="spy2023/", strike_distance_pct_threshold=0.05): # Currently set at this for buying ATM options
     columns = [
     'QUOTE_UNIXTIME', 'QUOTE_READTIME', 'QUOTE_DATE', 'QUOTE_TIME_HOURS', 
     'UNDERLYING_LAST', 'EXPIRE_DATE', 'EXPIRE_UNIX', 'DTE', 'C_DELTA', 
@@ -277,8 +262,29 @@ def load_and_filter_data(file_path, strike_distance_pct_threshold=0.05):
     'P_LAST', 'P_DELTA', 'P_GAMMA', 'P_VEGA', 'P_THETA', 'P_RHO', 'P_IV', 
     'P_VOLUME', 'STRIKE_DISTANCE', 'STRIKE_DISTANCE_PCT']
 
-    # Read the text file into a pandas DataFrame
-    df = pd.read_csv(file_path, header=None, names=columns, dtype='unicode')
+    # Ensure start_date is in datetime format
+    start_date = pd.to_datetime(start_date, format='%Y-%m-%d')
+    end_date = start_date + timedelta(days=duration)
+
+    # Generate a list of months between start_date and end_date
+    months_to_load = pd.date_range(start=start_date, end=end_date, freq='MS').strftime('%Y%m').tolist()
+    start_month_str = start_date.strftime('%Y%m')
+    if start_month_str not in months_to_load:
+        months_to_load.insert(0, start_month_str)
+
+    # Read and concatenate data from all necessary months
+    all_data = pd.DataFrame()
+    for month in months_to_load:
+        file_path = f"{base_path}spy_eod_{month}.txt"
+        try:
+            # Load data from the specific month file
+            data = pd.read_csv(file_path, header=None, dtype='unicode', names=columns)
+            all_data = pd.concat([all_data, data], ignore_index=True)
+        except FileNotFoundError:
+            print(f"File {file_path} not found. Skipping...")
+
+    # Filter and format data as needed
+    df = all_data  # Apply your specific filters here if necessary
 
     # Convert necessary columns to appropriate data types
     df['STRIKE_DISTANCE_PCT'] = pd.to_numeric(df['STRIKE_DISTANCE_PCT'], errors='coerce')
@@ -297,14 +303,14 @@ def load_and_filter_data(file_path, strike_distance_pct_threshold=0.05):
     return filtered_df
 
 def backtest_straddle(start_date, duration, cash=10000):
-    """Run backtest for the straddle strategy"""
-    file_path = "spy2023/spy_eod_202301.txt"
-    data = load_and_filter_data(file_path)
-    
+    data = load_and_filter_data(start_date, duration)
+
     straddle_strategy = StraddleStrategy(initial_cash=cash, data=data, start_date=start_date, duration=duration)
     straddle_strategy.enter_position()
     daily_values = straddle_strategy.reevaluate_position_daily()
     pnl, final_cash = straddle_strategy.close_position()
+
+    print(daily_values)
     
     return pnl, final_cash, daily_values
 
